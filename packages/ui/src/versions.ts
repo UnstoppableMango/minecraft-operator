@@ -1,8 +1,37 @@
 export interface Version {
-  value: string;
+  semver: string;
+  date: Date;
+  downloadUrl: string;
+}
+
+export interface McVersionsNet {
+  stable: Version[];
+  snapshot: Version[];
+  beta: Version[];
+  alpha: Version[];
+}
+
+export const emptyMcVersionsNet: McVersionsNet = {
+  alpha: [],
+  beta: [],
+  snapshot: [],
+  stable: [],
+};
+
+export function getMajor(v: Version): string | undefined {
+  return v.semver.split('.')[0];
+}
+
+export function getMinor(v: Version): string | undefined {
+  return v.semver.split('.')[1];
+}
+
+export function getPatch(v: Version): string | undefined {
+  return v.semver.split('.')[2];
 }
 
 function fetchMcVersions(): Promise<string> {
+  console.warn('fetching https://mcversions.net');
   return fetch('https://mcversions.net').then(x => x.text())
 }
 
@@ -16,17 +45,57 @@ async function getOrCache(key: string, fn: () => Promise<string>): Promise<strin
   return value;
 }
 
-function toVersions(rawhtml: string): Version[] {
-  const html = new DOMParser().parseFromString(rawhtml, 'text/html');
-
-  html.childNodes.forEach(x => {
-    console.log(x.nodeName);
-  });
-
-  return [];
+function parseVersion(elem: Element): Version {
+  const time = elem.querySelector('time');
+  
+  return {
+    date: time ? new Date(time.dateTime) : new Date(),
+    downloadUrl: '',
+    semver: elem.id,
+  };
 }
 
-export function listVersions(): Promise<Version[]> {
+function parseVersions(elem: Element): Version[] {
+  if (!elem.classList.contains('items')) {
+    console.warn('expected element to have the "items" class, version parsing may fail');
+  }
+
+  return Array.from(elem.children).map(parseVersion);
+}
+
+function toVersions(rawhtml: string): McVersionsNet {
+  const html = new DOMParser().parseFromString(rawhtml, 'text/html');
+
+  const elems = html.querySelectorAll('h5').values()
+    .reduce<Record<keyof McVersionsNet, Element | null>>((acc, value) => {
+      const list = value.nextElementSibling;
+      const name = value.textContent;
+
+      if (!list || !name) return acc;
+
+      switch (true) {
+        case /stable releases/i.test(name):
+          return { ...acc, stable: list };
+        case /snapshot preview/i.test(name):
+          return { ...acc, snapshot: list };
+        case /beta/i.test(name):
+          return { ...acc, beta: list };
+        case /alpha/i.test(name):
+          return { ...acc, alpha: list };
+        default:
+          return acc;
+      }
+    }, { alpha: null, beta: null, snapshot: null, stable: null });
+
+  return {
+    alpha: elems.alpha ? parseVersions(elems.alpha) : [],
+    beta: elems.beta ? parseVersions(elems.beta) : [],
+    snapshot: elems.snapshot ? parseVersions(elems.snapshot) : [],
+    stable: elems.stable ? parseVersions(elems.stable) : []
+  };
+}
+
+export function listVersions(): Promise<McVersionsNet> {
   return getOrCache('mcversions.net', fetchMcVersions)
     .then(toVersions);
 }
