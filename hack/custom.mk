@@ -39,3 +39,13 @@ bin/devctl: .versions/devctl | bin
 .make/bun-install: ${UI_PATH}/package.json ${UI_PATH}/bun.lock $(shell $(DEVCTL) list --ts)
 	$(BUN) install --cwd ${UI_PATH}
 	@touch $@
+
+.make/kubebuilder-create-operand:
+	kubebuilder create api \
+	--group unmango.dev \
+	--version v1alpha1 \
+	--kind MinecraftServer \
+	--image=itzg/minecraft-server:2025.2.1 \
+	--image-container-port="25565" \
+  --run-as-user="1001" \
+  --plugins="deploy-image/v1-alpha"
