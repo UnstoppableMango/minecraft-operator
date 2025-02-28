@@ -1,7 +1,7 @@
 export interface Version {
   semver: string;
   date: Date;
-  downloadUrl: string;
+  href: string;
 }
 
 export interface McVersionsNet {
@@ -35,6 +35,11 @@ function fetchMcVersions(): Promise<string> {
   return fetch('https://mcversions.net').then(x => x.text())
 }
 
+function resolveHref(href: string): Promise<string> {
+  console.warn(`fetching https://mcversions.net/${href}`);
+  return fetch(`https://mcversions.net/${href}`).then(x => x.text());
+}
+
 async function getOrCache(key: string, fn: () => Promise<string>): Promise<string> {
   let value = localStorage.getItem(key)
   if (!value) {
@@ -47,10 +52,11 @@ async function getOrCache(key: string, fn: () => Promise<string>): Promise<strin
 
 function parseVersion(elem: Element): Version {
   const time = elem.querySelector('time');
+  const download = elem.querySelector('a');
   
   return {
     date: time ? new Date(time.dateTime) : new Date(),
-    downloadUrl: '',
+    href: download?.href ?? '',
     semver: elem.id,
   };
 }
@@ -98,4 +104,8 @@ function toVersions(rawhtml: string): McVersionsNet {
 export function listVersions(): Promise<McVersionsNet> {
   return getOrCache('mcversions.net', fetchMcVersions)
     .then(toVersions);
+}
+
+export function getDownloadUrl(v: Version): Promise<string> {
+  return getOrCache(v.href, () => resolveHref(v.href));
 }
