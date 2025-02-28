@@ -18,9 +18,7 @@ export function App(): JSX.Element {
 
   if (error) {
     return (
-      <div>
-        <span>Error: {error}</span>
-      </div>
+      <span>Error: {error}</span>
     )
   }
 

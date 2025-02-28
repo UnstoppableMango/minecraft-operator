@@ -8,6 +8,7 @@ DPRINT ?= ${LOCAL_BIN}/dprint
 BUN    := bun
 
 UI_PATH := packages/ui
+UI_IMG  ?= ui:latest
 
 start-ui:
 	$(BUN) --cwd ${UI_PATH} start
@@ -15,8 +16,14 @@ start-ui:
 dev-ui:
 	$(BUN) --cwd ${UI_PATH} dev
 
+test-ui:
+	$(BUN) test --cwd ${UI_PATH}
+
 docker-build-ui:
-	docker build ${UI_PATH} -t minecraft-operator-ui:latest
+	${CONTAINER_TOOL} build ${UI_PATH} -t ${UI_IMG}
+
+docker-push-ui:
+	${CONTAINER_TOOL} build ${UI_PATH} -t ${UI_IMG}
 
 bin/dprint: .versions/dprint | .make/dprint/install.sh bin
 	DPRINT_INSTALL=${CURDIR} .make/dprint/install.sh $(shell $(DEVCTL) v dprint)
